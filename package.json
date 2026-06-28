@@ -1,0 +1,25 @@
+{
+  "name": "fluently-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "npm@10.8.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "type-check": "turbo run type-check",
+    "db:generate": "prisma generate --schema=packages/db/prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.6.3"
+  }
+}
