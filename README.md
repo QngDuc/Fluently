@@ -1,5 +1,13 @@
 # 🚀 Fluently Monorepo
 
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white)](#)
+[![NestJS](https://img.shields.io/badge/NestJS-E0234E?logo=nestjs&logoColor=white)](#)
+[![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=white)](#)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](#)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)](#)
+
+Tài liệu hướng dẫn khởi chạy, cấu trúc kiến trúc và quy chuẩn phát triển cho dự án Fluently.
+
 ## 🏗 Tổng quan kiến trúc & Công nghệ
 
 Dự án được xây dựng theo kiến trúc **Monorepo**, tách biệt rõ ràng giữa các ứng dụng (apps) và các gói dùng chung (packages).
@@ -98,13 +106,5 @@ Commit thay đổi với message rõ ràng, kèm ticket/issue ID nếu có.
 Mở Pull Request và chờ review.
 
 📧 Liên hệ (Maintainer): phamducquang717@gmail.com
-
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white)](#)
-[![NestJS](https://img.shields.io/badge/NestJS-E0234E?logo=nestjs&logoColor=white)](#)
-[![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=white)](#)
-[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](#)
-[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)](#)
-
-Tài liệu hướng dẫn khởi chạy, cấu trúc kiến trúc và quy chuẩn phát triển cho dự án Fluently.
 
 ---

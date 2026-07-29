@@ -7,6 +7,7 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
+
 enum Role { USER PREMIUM ADMIN }
 enum CefrLevel { A1 A2 B1 B2 C1 C2 }
 enum ThemeMode { LIGHT DARK SYSTEM }
