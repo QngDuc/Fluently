@@ -21,6 +21,10 @@ fluently/
 │   └── db/                 # Prisma schema & Database logic
 ├── supabase/               # Cấu hình & Migrations của Supabase
 └── package.json            # Cấu hình Monorepo Workspace
+```
+
+---
+
 ⚙️ Yêu cầu môi trường (Prerequisites)
 Trước khi chạy dự án, hãy đảm bảo máy bạn đã cài đặt:
 
@@ -62,13 +66,17 @@ Sau khi server báo Successfully started, truy cập:
 Trước khi push code lên repo hoặc tạo Pull Request, hãy đảm bảo code của bạn không có lỗi syntax hay type:
 
 Bash
+
 # Di chuyển vào thư mục API
+
 cd apps/api
 
 # Kiểm tra chặt chẽ định dạng TypeScript
+
 npm run type-check
 
 # Build bản production
+
 npm run build
 💻 Hướng dẫn cho Developer (DX)
 Cấu hình VS Code: Để IntelliSense và code navigation hoạt động hoàn hảo trong môi trường Monorepo, hãy sử dụng phiên bản TypeScript của workspace.
@@ -100,4 +108,3 @@ Mở Pull Request và chờ review.
 Tài liệu hướng dẫn khởi chạy, cấu trúc kiến trúc và quy chuẩn phát triển cho dự án Fluently.
 
 ---
-```
