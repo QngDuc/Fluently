@@ -21,5 +21,15 @@
     "prettier": "^3.3.0",
     "turbo": "^2.0.0",
     "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "supabase": "^2.109.1"
+  },
+  "allowScripts": {
+    "@nestjs/core@10.4.22": true,
+    "@prisma/client@5.22.0": true,
+    "@prisma/engines@5.22.0": true,
+    "prisma@5.22.0": true,
+    "unrs-resolver@1.12.2": true
   }
 }

@@ -1,0 +1,304 @@
+generator client {
+  provider  = "prisma-client-js"
+  output    = "../generated"
+}
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+enum Role { USER PREMIUM ADMIN }
+enum CefrLevel { A1 A2 B1 B2 C1 C2 }
+enum ThemeMode { LIGHT DARK SYSTEM }
+enum LessonType { VOCABULARY PRONUNCIATION CONVERSATION GRAMMAR LISTENING }
+enum LessonStatus { NOT_STARTED IN_PROGRESS COMPLETED }
+enum ConversationMode { FREE ROLEPLAY IELTS_MOCK }
+enum SubscriptionPlan { FREE PREMIUM_MONTHLY PREMIUM_ANNUAL LIFETIME }
+enum SubscriptionStatus { ACTIVE CANCELLED EXPIRED TRIAL }
+enum PaymentStatus { PENDING SUCCESS FAILED REFUNDED }
+
+model User {
+  id String @id @default(uuid())
+  email String @unique
+  passwordHash String?
+  fullName String
+  avatarUrl String?
+  nativeLanguage String @default("vi")
+  authProvider String @default("email")
+  providerId String?
+  role Role @default(USER)
+  isVerified Boolean @default(false)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLoginAt DateTime?
+  profile UserProfile?
+  preferences UserPreference?
+  learningGoals LearningGoal[]
+  lessonProgress UserLessonProgress[]
+  pronSessions PronunciationSession[]
+  conversations AiConversation[]
+  vocabulary VocabularyItem[]
+  achievements UserAchievement[]
+  subscriptions Subscription[]
+  transactions PaymentTransaction[]
+  uiEvents UiEvent[]
+  @@map("users")
+}
+model UserProfile {
+  id String @id @default(uuid())
+  userId String @unique
+  currentLevel CefrLevel @default(A1)
+  xpTotal Int @default(0)
+  currentStreak Int @default(0)
+  longestStreak Int @default(0)
+  lastActiveDate DateTime? @db.Date
+  totalStudyMins Int @default(0)
+  timezone String @default("Asia/Ho_Chi_Minh")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("user_profiles")
+}
+model UserPreference {
+  id String @id @default(uuid())
+  userId String @unique
+  theme ThemeMode @default(SYSTEM)
+  accentColor String @default("#D8E221")
+  layoutConfig Json @default("{}")
+  onboardingCompleted Boolean @default(false)
+  onboardingStep Int @default(0)
+  fontSize String @default("MEDIUM")
+  uiLanguage String @default("vi")
+  hapticEnabled Boolean @default(true)
+  soundEnabled Boolean @default(true)
+  widgetOrder Json @default("[]")
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("user_preferences")
+}
+model UiEvent {
+  id String @id @default(uuid())
+  userId String
+  eventName String
+  screenName String?
+  eventProperties Json @default("{}")
+  sessionId String?
+  deviceType String?
+  appVersion String?
+  occurredAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, eventName])
+  @@index([occurredAt])
+  @@map("ui_events")
+}
+model LearningGoal {
+  id String @id @default(uuid())
+  userId String
+  targetLanguage String
+  goalType String
+  dailyMinTarget Int @default(10)
+  targetDate DateTime? @db.Date
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("learning_goals")
+}
+model Language {
+  id String @id @default(uuid())
+  code String @unique
+  name String
+  nativeName String
+  flagEmoji String
+  isActive Boolean @default(true)
+  sortOrder Int @default(0)
+  courses Course[]
+  vocabulary VocabularyItem[]
+  @@map("languages")
+}
+model Course {
+  id String @id @default(uuid())
+  languageId String
+  title String
+  description String?
+  level CefrLevel
+  thumbnailUrl String?
+  sortOrder Int @default(0)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  language Language @relation(fields: [languageId], references: [id])
+  lessons Lesson[]
+  roadmapNodes RoadmapNode[]
+  @@map("courses")
+}
+model Lesson {
+  id String @id @default(uuid())
+  courseId String
+  title String
+  description String?
+  type LessonType
+  durationMins Int @default(5)
+  xpReward Int @default(20)
+  contentJson Json @default("{}")
+  sortOrder Int @default(0)
+  isPremium Boolean @default(false)
+  createdAt DateTime @default(now())
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userProgress UserLessonProgress[]
+  pronSessions PronunciationSession[]
+  roadmapNodes RoadmapNode[]
+  @@map("lessons")
+}
+model RoadmapNode {
+  id String @id @default(uuid())
+  courseId String
+  lessonId String?
+  label String
+  description String?
+  nodeType String @default("lesson")
+  positionX Float @default(0)
+  positionY Float @default(0)
+  sortOrder Int @default(0)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lesson Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  @@map("roadmap_nodes")
+}
+model UserLessonProgress {
+  id String @id @default(uuid())
+  userId String
+  lessonId String
+  attempts Int @default(0)
+  bestScore Float @default(0)
+  lastScore Float @default(0)
+  status LessonStatus @default(NOT_STARTED)
+  timeSpentSecs Int @default(0)
+  firstAttemptAt DateTime?
+  completedAt DateTime?
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  @@unique([userId, lessonId])
+  @@map("user_lesson_progress")
+}
+model PronunciationSession {
+  id String @id @default(uuid())
+  userId String
+  lessonId String?
+  audioUrl String
+  textReference String
+  overallScore Float @default(0)
+  phonemeDetails Json @default("[]")
+  wordScores Json @default("[]")
+  intonationScore Float @default(0)
+  fluencyScore Float @default(0)
+  durationMs Int @default(0)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  @@index([userId, createdAt])
+  @@map("pronunciation_sessions")
+}
+model AiConversation {
+  id String @id @default(uuid())
+  userId String
+  languageCode String @default("en")
+  mode ConversationMode @default(FREE)
+  scenarioId String?
+  aiPersona String @default("friendly_buddy")
+  turnsCount Int @default(0)
+  durationSecs Int @default(0)
+  fluencyScore Float @default(0)
+  grammarErrors Json @default("[]")
+  newVocabulary Json @default("[]")
+  xpEarned Int @default(0)
+  startedAt DateTime @default(now())
+  endedAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages ConversationMessage[]
+  @@index([userId, startedAt])
+  @@map("ai_conversations")
+}
+model ConversationMessage {
+  id String @id @default(uuid())
+  conversationId String
+  role String
+  contentText String
+  audioUrl String?
+  grammarCorrections Json @default("[]")
+  responseTimeMs Int @default(0)
+  createdAt DateTime @default(now())
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  @@map("conversation_messages")
+}
+model VocabularyItem {
+  id String @id @default(uuid())
+  userId String
+  languageId String
+  word String
+  translation String
+  phonetic String?
+  exampleSentence String?
+  srsLevel Int @default(0)
+  easeFactor Float @default(2.5)
+  intervalDays Int @default(1)
+  nextReviewAt DateTime @default(now())
+  correctCount Int @default(0)
+  incorrectCount Int @default(0)
+  addedAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  language Language @relation(fields: [languageId], references: [id])
+  @@index([userId, nextReviewAt])
+  @@map("vocabulary_items")
+}
+model Achievement {
+  id String @id @default(uuid())
+  code String @unique
+  name String
+  description String
+  iconUrl String?
+  category String
+  unlockCriteria Json @default("{}")
+  xpReward Int @default(0)
+  userAchievements UserAchievement[]
+  @@map("achievements")
+}
+model UserAchievement {
+  id String @id @default(uuid())
+  userId String
+  achievementId String
+  earnedAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+model Subscription {
+  id String @id @default(uuid())
+  userId String
+  plan SubscriptionPlan @default(FREE)
+  status SubscriptionStatus @default(ACTIVE)
+  startedAt DateTime @default(now())
+  endsAt DateTime?
+  paymentProvider String?
+  externalSubId String?
+  amountPaid Decimal? @db.Decimal(10,2)
+  currency String @default("USD")
+  cancelledAt DateTime?
+  cancelReason String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions PaymentTransaction[]
+  @@map("subscriptions")
+}
+model PaymentTransaction {
+  id String @id @default(uuid())
+  userId String
+  subscriptionId String?
+  externalTxId String?
+  amount Decimal @db.Decimal(10,2)
+  currency String @default("USD")
+  paymentMethod String?
+  status PaymentStatus @default(PENDING)
+  providerResponse Json @default("{}")
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+  @@map("payment_transactions")
+}

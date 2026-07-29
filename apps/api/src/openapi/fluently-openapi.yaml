@@ -1,0 +1,824 @@
+openapi: 3.1.0
+
+info:
+  title: Fluently API
+  version: 1.0.0
+  description: |
+    API contract cho ứng dụng học tiếng Anh Fluently.
+    Gồm 5 module: Auth, Profile/Preferences, Pronunciation, Conversation, Payment.
+  contact:
+    name: Fluently Team
+    email: phamducquang717@gmail.com
+
+servers:
+  - url: https://api.fluently.app/v1
+    description: Production
+  - url: https://staging-api.fluently.app/v1
+    description: Staging
+
+# ─────────────────────────────────────────────
+# SECURITY SCHEMES
+# ─────────────────────────────────────────────
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token – lấy từ /auth/login hoặc /auth/refresh
+
+    OAuth2:
+      type: oauth2
+      description: OAuth2 – dành cho đăng nhập Google / Apple
+      flows:
+        authorizationCode:
+          authorizationUrl: https://api.fluently.app/v1/auth/oauth/authorize
+          tokenUrl: https://api.fluently.app/v1/auth/oauth/token
+          refreshUrl: https://api.fluently.app/v1/auth/oauth/refresh
+          scopes:
+            read:profile: Đọc thông tin hồ sơ
+            write:profile: Cập nhật hồ sơ
+            read:progress: Xem tiến trình học
+            write:progress: Ghi tiến trình học
+
+  # ─── SHARED SCHEMAS ───────────────────────
+  schemas:
+
+    # ── Common ──────────────────────────────
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:    { type: string, example: UNAUTHORIZED }
+        message: { type: string, example: Token không hợp lệ hoặc đã hết hạn }
+        details: { type: object }
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:       { type: integer, example: 1 }
+        limit:      { type: integer, example: 20 }
+        total:      { type: integer, example: 100 }
+        totalPages: { type: integer, example: 5 }
+
+    # ── Auth ────────────────────────────────
+    RegisterRequest:
+      type: object
+      required: [email, password, fullName]
+      properties:
+        email:    { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        fullName: { type: string }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:    { type: string, format: email }
+        password: { type: string }
+
+    TokenPair:
+      type: object
+      properties:
+        accessToken:  { type: string }
+        refreshToken: { type: string }
+        expiresIn:    { type: integer, description: Giây, example: 3600 }
+
+    OAuthLoginRequest:
+      type: object
+      required: [provider, idToken]
+      properties:
+        provider: { type: string, enum: [google, apple] }
+        idToken:  { type: string }
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+
+    ResetPasswordRequest:
+      type: object
+      required: [token, newPassword]
+      properties:
+        token:       { type: string }
+        newPassword: { type: string, minLength: 8 }
+
+    # ── Profile / Preferences ────────────────
+    UserProfile:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        email:       { type: string, format: email }
+        fullName:    { type: string }
+        avatarUrl:   { type: string, format: uri, nullable: true }
+        level:       { type: string, enum: [beginner, intermediate, advanced] }
+        createdAt:   { type: string, format: date-time }
+        updatedAt:   { type: string, format: date-time }
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        fullName:  { type: string }
+        avatarUrl: { type: string, format: uri }
+        level:     { type: string, enum: [beginner, intermediate, advanced] }
+
+    UserPreferences:
+      type: object
+      properties:
+        dailyGoalMinutes:   { type: integer, example: 30 }
+        notificationsEnabled: { type: boolean }
+        reminderTime:       { type: string, format: time, example: "07:00" }
+        uiLanguage:         { type: string, example: vi }
+        accent:             { type: string, enum: [american, british, australian] }
+
+    # ── Pronunciation ────────────────────────
+    PronunciationSubmitRequest:
+      type: object
+      required: [wordOrPhrase, audioBase64]
+      properties:
+        wordOrPhrase: { type: string, example: "How are you?" }
+        audioBase64:  { type: string, format: byte, description: Base64-encoded audio (WAV/MP3) }
+        languageCode: { type: string, default: en-US }
+
+    PronunciationResult:
+      type: object
+      properties:
+        id:           { type: string, format: uuid }
+        wordOrPhrase: { type: string }
+        overallScore: { type: number, format: float, minimum: 0, maximum: 100 }
+        phonemes:
+          type: array
+          items:
+            type: object
+            properties:
+              symbol:    { type: string }
+              score:     { type: number }
+              feedback:  { type: string }
+        audioFeedbackUrl: { type: string, format: uri, nullable: true }
+        createdAt:    { type: string, format: date-time }
+
+    PronunciationHistory:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/PronunciationResult' }
+        meta: { $ref: '#/components/schemas/PaginationMeta' }
+
+    # ── Conversation ─────────────────────────
+    ConversationSession:
+      type: object
+      properties:
+        id:        { type: string, format: uuid }
+        topic:     { type: string, example: "Đặt phòng khách sạn" }
+        level:     { type: string, enum: [beginner, intermediate, advanced] }
+        status:    { type: string, enum: [active, completed, abandoned] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CreateConversationRequest:
+      type: object
+      required: [topic]
+      properties:
+        topic:       { type: string }
+        level:       { type: string, enum: [beginner, intermediate, advanced] }
+        scenarioId:  { type: string, format: uuid, nullable: true }
+
+    ConversationMessage:
+      type: object
+      properties:
+        id:        { type: string, format: uuid }
+        sessionId: { type: string, format: uuid }
+        role:      { type: string, enum: [user, assistant] }
+        content:   { type: string }
+        audioUrl:  { type: string, format: uri, nullable: true }
+        feedback:
+          type: object
+          nullable: true
+          properties:
+            grammarScore:      { type: number }
+            vocabularyScore:   { type: number }
+            suggestions:       { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time }
+
+    SendMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content:     { type: string }
+        audioBase64: { type: string, format: byte, nullable: true }
+
+    ConversationMessages:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/ConversationMessage' }
+        meta: { $ref: '#/components/schemas/PaginationMeta' }
+
+    # ── Payment ──────────────────────────────
+    Plan:
+      type: object
+      properties:
+        id:           { type: string, format: uuid }
+        name:         { type: string, example: Pro Monthly }
+        description:  { type: string }
+        priceVnd:     { type: integer, example: 99000 }
+        priceUsd:     { type: number, format: float, example: 3.99 }
+        intervalDays: { type: integer, example: 30 }
+        features:     { type: array, items: { type: string } }
+
+    CreatePaymentRequest:
+      type: object
+      required: [planId, paymentMethod]
+      properties:
+        planId:        { type: string, format: uuid }
+        paymentMethod: { type: string, enum: [vnpay, momo, stripe, apple_pay, google_pay] }
+        returnUrl:     { type: string, format: uri }
+
+    PaymentResponse:
+      type: object
+      properties:
+        paymentId:   { type: string, format: uuid }
+        checkoutUrl: { type: string, format: uri, description: Redirect người dùng đến đây để thanh toán }
+        expiresAt:   { type: string, format: date-time }
+
+    Subscription:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        plan:        { $ref: '#/components/schemas/Plan' }
+        status:      { type: string, enum: [active, expired, cancelled] }
+        startDate:   { type: string, format: date }
+        endDate:     { type: string, format: date }
+        autoRenew:   { type: boolean }
+
+    PaymentHistory:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:          { type: string, format: uuid }
+              plan:        { $ref: '#/components/schemas/Plan' }
+              amountVnd:   { type: integer }
+              method:      { type: string }
+              status:      { type: string, enum: [success, failed, pending, refunded] }
+              paidAt:      { type: string, format: date-time }
+        meta: { $ref: '#/components/schemas/PaginationMeta' }
+
+  # ── SHARED RESPONSES ──────────────────────
+  responses:
+    Unauthorized:
+      description: Chưa xác thực
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Không có quyền
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Không tìm thấy
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    UnprocessableEntity:
+      description: Dữ liệu không hợp lệ
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+# ─────────────────────────────────────────────
+# GLOBAL SECURITY (override per-endpoint nếu cần)
+# ─────────────────────────────────────────────
+security:
+  - BearerAuth: []
+  - OAuth2: [read:profile, write:profile, read:progress, write:progress]
+
+# ─────────────────────────────────────────────
+# TAGS
+# ─────────────────────────────────────────────
+tags:
+  - name: Auth
+    description: Đăng ký, đăng nhập, refresh token, OAuth2
+  - name: Profile
+    description: Thông tin hồ sơ người dùng
+  - name: Preferences
+    description: Cài đặt cá nhân
+  - name: Pronunciation
+    description: Luyện phát âm và lịch sử
+  - name: Conversation
+    description: Hội thoại AI – tạo session và gửi tin nhắn
+  - name: Payment
+    description: Gói cước, thanh toán, lịch sử giao dịch
+
+# ─────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────
+paths:
+
+  # ════════════════════════════════════════════
+  # MODULE 1: AUTH
+  # ════════════════════════════════════════════
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Đăng ký tài khoản mới
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Tạo tài khoản thành công
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập bằng email & password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/oauth/login:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập bằng Google hoặc Apple
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OAuthLoginRequest' }
+      responses:
+        '200':
+          description: Đăng nhập OAuth thành công
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Làm mới access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: Token mới
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Đăng xuất (revoke refresh token)
+      responses:
+        '204':
+          description: Đăng xuất thành công
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Yêu cầu đặt lại mật khẩu
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ForgotPasswordRequest' }
+      responses:
+        '200':
+          description: Email đặt lại mật khẩu đã được gửi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Đặt lại mật khẩu bằng token từ email
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResetPasswordRequest' }
+      responses:
+        '200':
+          description: Đặt lại mật khẩu thành công
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+
+  # ════════════════════════════════════════════
+  # MODULE 2: PROFILE & PREFERENCES
+  # ════════════════════════════════════════════
+
+  /profile/me:
+    get:
+      tags: [Profile]
+      summary: Lấy thông tin hồ sơ của tôi
+      responses:
+        '200':
+          description: Hồ sơ người dùng
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+    patch:
+      tags: [Profile]
+      summary: Cập nhật hồ sơ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateProfileRequest' }
+      responses:
+        '200':
+          description: Hồ sơ đã được cập nhật
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+
+  /profile/me/avatar:
+    put:
+      tags: [Profile]
+      summary: Upload ảnh đại diện
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Avatar đã được cập nhật
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  avatarUrl: { type: string, format: uri }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /profile/me/preferences:
+    get:
+      tags: [Preferences]
+      summary: Lấy cài đặt cá nhân
+      responses:
+        '200':
+          description: Preferences hiện tại
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserPreferences' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+    put:
+      tags: [Preferences]
+      summary: Cập nhật cài đặt cá nhân
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserPreferences' }
+      responses:
+        '200':
+          description: Preferences đã cập nhật
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserPreferences' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ════════════════════════════════════════════
+  # MODULE 3: PRONUNCIATION
+  # ════════════════════════════════════════════
+
+  /pronunciation/analyze:
+    post:
+      tags: [Pronunciation]
+      summary: Gửi audio để phân tích phát âm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PronunciationSubmitRequest' }
+      responses:
+        '200':
+          description: Kết quả phân tích phát âm
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PronunciationResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+
+  /pronunciation/history:
+    get:
+      tags: [Pronunciation]
+      summary: Lịch sử luyện phát âm
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Danh sách lịch sử
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PronunciationHistory' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /pronunciation/history/{id}:
+    get:
+      tags: [Pronunciation]
+      summary: Chi tiết một lần luyện phát âm
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Chi tiết kết quả
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PronunciationResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ════════════════════════════════════════════
+  # MODULE 4: CONVERSATION
+  # ════════════════════════════════════════════
+
+  /conversations:
+    get:
+      tags: [Conversation]
+      summary: Danh sách session hội thoại
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, completed, abandoned] }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Danh sách sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ConversationSession' }
+                  meta: { $ref: '#/components/schemas/PaginationMeta' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+    post:
+      tags: [Conversation]
+      summary: Tạo session hội thoại mới
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateConversationRequest' }
+      responses:
+        '201':
+          description: Session được tạo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationSession' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /conversations/{sessionId}:
+    get:
+      tags: [Conversation]
+      summary: Chi tiết session hội thoại
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Thông tin session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationSession' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    delete:
+      tags: [Conversation]
+      summary: Kết thúc / hủy session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Session đã được kết thúc
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /conversations/{sessionId}/messages:
+    get:
+      tags: [Conversation]
+      summary: Lịch sử tin nhắn trong session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+      responses:
+        '200':
+          description: Danh sách tin nhắn
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationMessages' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    post:
+      tags: [Conversation]
+      summary: Gửi tin nhắn – nhận phản hồi AI
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SendMessageRequest' }
+      responses:
+        '200':
+          description: Tin nhắn AI phản hồi
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationMessage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ════════════════════════════════════════════
+  # MODULE 5: PAYMENT
+  # ════════════════════════════════════════════
+
+  /payments/plans:
+    get:
+      tags: [Payment]
+      summary: Danh sách gói cước
+      security: []
+      responses:
+        '200':
+          description: Các gói subscription
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Plan' }
+
+  /payments/checkout:
+    post:
+      tags: [Payment]
+      summary: Khởi tạo thanh toán
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePaymentRequest' }
+      responses:
+        '201':
+          description: URL thanh toán
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+
+  /payments/webhook:
+    post:
+      tags: [Payment]
+      summary: Webhook nhận kết quả thanh toán từ cổng
+      description: |
+        Endpoint nhận callback từ VNPay / MoMo / Stripe.
+        **Không cần auth** – xác minh bằng chữ ký HMAC trong header `X-Webhook-Signature`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Payload từ cổng thanh toán (tùy provider)
+      responses:
+        '200':
+          description: Đã xử lý
+
+  /payments/subscription:
+    get:
+      tags: [Payment]
+      summary: Subscription hiện tại của người dùng
+      responses:
+        '200':
+          description: Thông tin gói đang dùng
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /payments/subscription/cancel:
+    post:
+      tags: [Payment]
+      summary: Hủy tự động gia hạn
+      responses:
+        '200':
+          description: Đã hủy auto-renew
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  endDate: { type: string, format: date }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /payments/history:
+    get:
+      tags: [Payment]
+      summary: Lịch sử giao dịch
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Danh sách giao dịch
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentHistory' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
