@@ -1,0 +1,24 @@
+version: '3.9'
+
+# docker compose -f docker-compose.yml -f docker-compose.staging.yml up
+services:
+  api:
+    build:
+      target: production
+    environment:
+      NODE_ENV: staging
+    volumes: []   # no bind mounts in staging
+
+  web:
+    build:
+      target: production
+    environment:
+      NODE_ENV: staging
+    volumes: []
+
+  admin:
+    build:
+      target: production
+    environment:
+      NODE_ENV: staging
+    volumes: []

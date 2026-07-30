@@ -1,24 +1,45 @@
 # dependencies
-node_modules
-**/node_modules
+node_modules/
+**/node_modules/
 
 # build outputs
-.next
-**/.next
-dist
-out
-build
+.next/
+**/.next/
+dist/
+**/dist/
+out/
+build/
+**/build/
+*.tsbuildinfo
 
-# turborepo cache
-.turbo
+# turborepo / task runner
+.turbo/
+**/.turbo/
 
-# coverage
-coverage
+# test / coverage
+coverage/
+**/coverage/
+.nyc_output/
 
 # environment files
 .env
+.env.*
+!.env.example
+!.env.sample
 .env.local
 .env.*.local
+.envrc
+.envrc.local
+.secrets
+.secrets.json
+supabase/.env
+
+# local secrets and credentials
+*.pem
+*.key
+*.crt
+.aws/credentials
+.aws/config
 
 # logs
 npm-debug.log*
@@ -31,27 +52,24 @@ pnpm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
-
-# misc
 *.swp
-
-# Sensitive / local environment files
-.env.local
-.env.*.local
-.envrc
-.envrc.local
-.secrets
-.secrets.json
-supabase/.env
-
-# AWS credentials (local)
-.aws/credentials
-.aws/config
+*.swo
 
 # caches and temporary outputs
-.cache
-.nyc_output
+.cache/
+.parcel-cache/
+.vite/
+.history/
+tmp/
+temp/
+
+# local tooling / generated artifacts
+**/.prisma/
+**/prisma/generated/
+**/.cache/
+
+# local docker overrides
+docker-compose.override.yml
 
 # local IDE/workspace files
 .vscode/*.code-workspace
-.history

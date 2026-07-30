@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop, 'release/**']
+  push:
+    branches: [develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+
+jobs:
+  # ────────────────────────────────────────────
+  # 1. LINT
+  # ────────────────────────────────────────────
+  lint:
+    name: 🔍 Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # needed for turbo affected
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (turbo affected)
+        run: npx turbo run lint --filter='[HEAD^1]'
+
+  # ────────────────────────────────────────────
+  # 2. TYPE CHECK
+  # ────────────────────────────────────────────
+  typecheck:
+    name: 🧩 Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx turbo run typecheck --filter='[HEAD^1]'
+
+  # ────────────────────────────────────────────
+  # 3. TEST
+  # ────────────────────────────────────────────
+  test:
+    name: 🧪 Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: fluently_test
+          POSTGRES_PASSWORD: test_secret
+          POSTGRES_DB: fluently_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://fluently_test:test_secret@localhost:5432/fluently_test
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: test_jwt_secret
+      JWT_REFRESH_SECRET: test_refresh_secret
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run DB migrations (test)
+        run: npx prisma migrate deploy
+        working-directory: packages/db
+
+      - name: Run tests
+        run: npx turbo run test --filter='[HEAD^1]' -- --coverage
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+  # ────────────────────────────────────────────
+  # 4. BUILD
+  # ────────────────────────────────────────────
+  build:
+    name: 🏗️ Build
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build all apps
+        run: npx turbo run build
+        env:
+          NEXT_PUBLIC_API_URL: https://api.fluently.app/v1
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ github.sha }}
+          path: |
+            apps/web/.next
+            apps/admin/.next
+            apps/api/dist
+          retention-days: 1
