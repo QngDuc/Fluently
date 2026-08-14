@@ -3,8 +3,8 @@ name: CD
 on:
   push:
     branches:
-      - main       # → production
-      - develop    # → staging
+      - main # → production
+      - develop # → staging
 
 env:
   REGISTRY: ghcr.io
@@ -99,31 +99,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.STAGING_HOST }}
-          username: ${{ secrets.STAGING_USER }}
-          key: ${{ secrets.STAGING_SSH_KEY }}
-          script: |
-            cd /opt/fluently
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
 
-            export IMAGE_TAG=${{ github.sha }}
-            export REGISTRY=${{ env.REGISTRY }}
-            export IMAGE_PREFIX=${{ env.IMAGE_PREFIX }}
-
-            docker compose \
-              -f docker-compose.yml \
-              -f docker-compose.staging.yml \
-              pull
-
-            docker compose \
-              -f docker-compose.yml \
-              -f docker-compose.staging.yml \
-              up -d --remove-orphans
-
-            docker image prune -f
+      - name: Deploy to Railway (staging)
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway login --token "$RAILWAY_TOKEN"
+          railway up --ci
 
       - name: Health check
         run: |
@@ -158,28 +142,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          script: |
-            cd /opt/fluently
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
 
-            export IMAGE_TAG=${{ github.sha }}
-            export REGISTRY=${{ env.REGISTRY }}
-            export IMAGE_PREFIX=${{ env.IMAGE_PREFIX }}
-
-            # Rolling update – zero downtime
-            docker compose pull
-            docker compose up -d --no-deps --scale api=2 api
-            sleep 10
-            docker compose up -d --no-deps --scale api=1 api
-
-            docker compose up -d --no-deps web admin
-            docker image prune -f
+      - name: Deploy to Railway (production)
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway login --token "$RAILWAY_TOKEN"
+          railway up --ci
 
       - name: Health check
         run: |
