@@ -7,7 +7,7 @@ RUN npm install -g turbo
 # ─── Pruner ─────────────────────────────────────────────────────
 FROM base AS pruner
 COPY . .
-RUN turbo prune --scope=web --docker
+RUN turbo prune web --docker
 
 # ─── Installer ──────────────────────────────────────────────────
 FROM base AS installer
