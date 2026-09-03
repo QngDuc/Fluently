@@ -7,7 +7,7 @@ RUN npm install -g turbo
 # ─── Pruner – Turborepo remote cache pruning ────────────────────
 FROM base AS pruner
 COPY . .
-RUN turbo prune --scope=api --docker
+RUN turbo prune @fluently/api --docker
 
 # ─── Installer ──────────────────────────────────────────────────
 FROM base AS installer
@@ -16,7 +16,7 @@ COPY --from=pruner /app/out/package-lock.json ./package-lock.json
 RUN npm ci
 
 COPY --from=pruner /app/out/full/ .
-RUN npx turbo run build --filter=api
+RUN npx turbo run build --filter=@fluently/api
 
 # ─── Development (hot-reload) ───────────────────────────────────
 FROM base AS development

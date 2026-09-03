@@ -7,7 +7,7 @@ RUN npm install -g turbo
 # ─── Pruner ─────────────────────────────────────────────────────
 FROM base AS pruner
 COPY . .
-RUN turbo prune --scope=admin --docker
+RUN turbo prune @fluently/admin --docker
 
 # ─── Installer ──────────────────────────────────────────────────
 FROM base AS installer
@@ -16,7 +16,7 @@ COPY --from=pruner /app/out/package-lock.json ./package-lock.json
 RUN npm ci
 
 COPY --from=pruner /app/out/full/ .
-RUN npx turbo run build --filter=admin
+RUN npx turbo run build --filter=@fluently/admin
 
 # ─── Development ────────────────────────────────────────────────
 FROM base AS development
