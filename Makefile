@@ -60,4 +60,4 @@ test: ## Run tests
 	npx turbo run test
 
 typecheck: ## Run type checks
-	npx turbo run typecheck
+	npx turbo run type-check

@@ -16,6 +16,10 @@ COPY --from=pruner /app/out/package-lock.json ./package-lock.json
 RUN npm ci
 
 COPY --from=pruner /app/out/full/ .
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WS_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 RUN npx turbo run build --filter=web
 
 # ─── Development ────────────────────────────────────────────────

@@ -22,7 +22,7 @@ RUN npx turbo run build --filter=@fluently/api
 FROM base AS development
 COPY --from=installer /app .
 WORKDIR /app/apps/api
-CMD ["npm", "run", "start:dev"]
+CMD ["npm", "run", "dev"]
 
 # ─── Production ─────────────────────────────────────────────────
 FROM node:20-alpine AS production
