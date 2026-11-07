@@ -6,105 +6,193 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](#)
 [![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)](#)
 
-Tài liệu hướng dẫn khởi chạy, cấu trúc kiến trúc và quy chuẩn phát triển cho dự án Fluently.
+# Fluently
 
-## 🏗 Tổng quan kiến trúc & Công nghệ
+> Break language barriers. Speak with confidence.
 
-Dự án được xây dựng theo kiến trúc **Monorepo**, tách biệt rõ ràng giữa các ứng dụng (apps) và các gói dùng chung (packages).
+Fluently là nền tảng học ngoại ngữ ứng dụng AI: luyện hội thoại, đánh giá phát âm, theo dõi tiến độ và học theo lộ trình cá nhân. Giai đoạn đầu ưu tiên tiếng Anh.
 
-- **Backend Framework:** NestJS (`apps/api`)
-- **Database & ORM:** PostgreSQL (via Supabase) & Prisma (`packages/db`)
-- **API Documentation:** OpenAPI 3.0 / Swagger
+Repository này là **monorepo** (npm workspaces + Turborepo) gồm API, web, admin và các package dùng chung.
 
----
+## Trạng thái hiện tại
 
-## 📂 Cấu trúc thư mục
+Dự án đang ở giai đoạn khởi tạo (scaffold):
+
+| Thành phần | Trạng thái |
+|---|---|
+| `apps/api` | NestJS chạy được. Hiện mới có `GET /health`, Swagger UI và phục vụ file OpenAPI. Các module Auth, Profile, Pronunciation, Conversation, Payment **mới chỉ có trong hợp đồng API** (`fluently-openapi.yaml`), chưa được cài đặt. |
+| `apps/web` | Next.js 14, mới có trang chủ placeholder và `ThemeProvider` (light/dark). |
+| `apps/admin` | Next.js 14, mới có trang placeholder. |
+| `packages/db` | Prisma schema (PostgreSQL/Supabase), chưa có migration. |
+| `packages/ui`, `packages/config` | Placeholder. |
+
+## Công nghệ
+
+- **Backend:** NestJS 10, Swagger/OpenAPI, Socket.IO (đã khai báo dependency)
+- **Frontend:** Next.js 14 (App Router), React 18, Tailwind CSS
+- **Database:** PostgreSQL qua Supabase, ORM Prisma 5
+- **Hạ tầng:** Docker Compose (Postgres, Redis), GitHub Actions, Railway
+- **Tooling:** Turborepo, TypeScript 5, ESLint, Prettier
+
+## Cấu trúc thư mục
 
 ```text
 fluently/
 ├── apps/
-│   └── api/                # Core NestJS API application
-│       └── src/openapi/    # Nơi chứa file fluently-openapi.yaml
+│   ├── api/                  # NestJS API (cổng 4000)
+│   │   └── src/openapi/      # fluently-openapi.yaml (hợp đồng API)
+│   ├── web/                  # Next.js web app (cổng 3000)
+│   └── admin/                # Next.js admin dashboard (cổng 3001)
 ├── packages/
-│   └── db/                 # Prisma schema & Database logic
-├── supabase/               # Cấu hình & Migrations của Supabase
-└── package.json            # Cấu hình Monorepo Workspace
+│   ├── db/                   # Prisma schema + client (prisma/schema.prisma)
+│   ├── ui/                   # Component dùng chung
+│   └── config/               # Cấu hình dùng chung
+├── supabase/                 # Cấu hình Supabase CLI
+├── .github/workflows/        # ci.yml, security.yml
+├── docker-compose.yml
+├── Makefile
+├── tsconfig.base.json
+└── turbo.json
 ```
 
----
+> Thư mục `fluent-ai/` là bản thiết kế database trước đó (schema Prisma, migration SQL và seed cho Supabase) và **không thuộc workspace**. Cần quyết định gộp hoặc loại bỏ để tránh hai schema khác nhau.
 
-⚙️ Yêu cầu môi trường (Prerequisites)
-Trước khi chạy dự án, hãy đảm bảo máy bạn đã cài đặt:
+## Yêu cầu môi trường
 
-Node.js (Phiên bản >= 18.x)
+- Node.js >= 20
+- npm >= 10 (dự án dùng `npm@10.8.2`)
+- Docker + Docker Compose (tùy chọn, để chạy toàn bộ stack)
+- Tài khoản Supabase hoặc PostgreSQL cục bộ
 
-npm (Phiên bản >= 9.x)
+## Bắt đầu nhanh
 
-Khuyến nghị cài đặt thêm extension Prisma trên VS Code.
+### 1. Cài đặt dependency
 
-🚀 Hướng dẫn khởi chạy (Local Development)
-Bước 1: Cài đặt dependencies
-Tại thư mục gốc của dự án, chạy lệnh:
-
-Bash
+```bash
 npm install
-Bước 2: Thiết lập môi trường
-Sao chép file .env.example thành .env (nếu có) và điền các thông số kết nối Database (Supabase URL, Database Password,...).
+```
 
-Bash
+### 2. Cấu hình môi trường
+
+```bash
 cp .env.example .env
-Bước 3: Generate Prisma Client
-Mỗi khi có thay đổi trong schema.prisma hoặc sau khi clone source code, bạn cần tạo lại Prisma Client:
+```
 
-Bash
+Điền các biến cần thiết. Prisma schema yêu cầu cả hai biến sau:
+
+```env
+DATABASE_URL="postgresql://..."   # connection string (pooler)
+DIRECT_URL="postgresql://..."     # kết nối trực tiếp, dùng cho migration
+```
+
+> `.env.example` ở thư mục gốc hiện chưa có `DIRECT_URL`, hãy thêm vào thủ công.
+
+Không commit `.env` hoặc bất kỳ file chứa secret nào.
+
+### 3. Generate Prisma Client
+
+```bash
 npm run db:generate
-Bước 4: Khởi động API Server
+```
 
-Bash
-cd apps/api
+Chạy lại lệnh này mỗi khi sửa `packages/db/prisma/schema.prisma` hoặc sau khi clone repo.
+
+### 4. Chạy migration (nếu đã có database)
+
+```bash
+npx prisma migrate dev --schema packages/db/prisma/schema.prisma
+```
+
+### 5. Chạy ứng dụng
+
+Chạy tất cả bằng Turborepo:
+
+```bash
 npm run dev
-Bước 5: Truy cập API Documentation
-Sau khi server báo Successfully started, truy cập:
+```
 
-📖 Swagger UI: http://localhost:4000/docs
+Hoặc chạy riêng từng app:
 
-📄 OpenAPI YAML: http://localhost:4000/docs/openapi.yaml
+```bash
+npm --workspace apps/api run dev     # http://localhost:4000
+npm --workspace apps/web run dev     # http://localhost:3000
+npm --workspace apps/admin run dev   # http://localhost:3001
+```
 
-✅ Quy trình Build & Kiểm tra (CI/CD)
-Trước khi push code lên repo hoặc tạo Pull Request, hãy đảm bảo code của bạn không có lỗi syntax hay type:
+### 6. Kiểm tra API
 
-Bash
+| Đường dẫn | Mô tả |
+|---|---|
+| `http://localhost:4000/health` | Health check |
+| `http://localhost:4000/docs` | Swagger UI |
+| `http://localhost:4000/docs/openapi.yaml` | File hợp đồng OpenAPI |
 
-# Di chuyển vào thư mục API
+## Chạy bằng Docker
 
-cd apps/api
+```bash
+make dev        # build và chạy toàn bộ stack
+make up         # chạy nền
+make down       # dừng
+make logs s=api # xem log một service
+make help       # danh sách lệnh
+```
 
-# Kiểm tra chặt chẽ định dạng TypeScript
+Stack gồm `postgres`, `redis`, `api`, `web` và `admin`. Staging dùng thêm `docker-compose.staging.yml`:
 
-npm run type-check
+```bash
+docker compose -f docker-compose.yml -f docker-compose.staging.yml up
+```
 
-# Build bản production
+## Lệnh thường dùng
 
-npm run build
-💻 Hướng dẫn cho Developer (DX)
-Cấu hình VS Code: Để IntelliSense và code navigation hoạt động hoàn hảo trong môi trường Monorepo, hãy sử dụng phiên bản TypeScript của workspace.
-(Command Palette Ctrl+Shift+P → TypeScript: Select TypeScript Version → Chọn Use Workspace Version).
+| Lệnh | Tác dụng |
+|---|---|
+| `npm run dev` | Chạy các app ở chế độ phát triển |
+| `npm run build` | Build toàn bộ workspace |
+| `npm run lint` | Kiểm tra lint |
+| `npm run type-check` | Kiểm tra kiểu TypeScript |
+| `npm run test` | Chạy test |
+| `npm run db:generate` | Generate Prisma Client |
 
-Bảo mật (Security):
+Trước khi mở Pull Request, hãy chạy tối thiểu:
 
-Tuyệt đối KHÔNG commit các file chứa secret keys như .env, supabase/.env, .aws/credentials.
+```bash
+npm run lint && npm run type-check && npm run build
+```
 
-Nếu lỡ track nhầm file nhạy cảm vào Git, sử dụng lệnh git rm --cached <đường-dẫn-file> để gỡ bỏ khỏi index mà không xóa file ở local.
+## API
 
-🤝 Đóng góp (Contributing)
-Fork repository.
+Hợp đồng API được viết theo OpenAPI 3.1 tại `apps/api/src/openapi/fluently-openapi.yaml`, gồm 5 module:
 
-Tạo feature branch mới từ nhánh master (ví dụ: feature/add-new-auth).
+- **Auth:** đăng ký, đăng nhập, OAuth (Google/Apple), refresh token, quên/đặt lại mật khẩu
+- **Profile & Preferences:** hồ sơ, ảnh đại diện, cài đặt cá nhân
+- **Pronunciation:** phân tích phát âm, lịch sử luyện tập
+- **Conversation:** phiên hội thoại AI và tin nhắn
+- **Payment:** gói cước, thanh toán, webhook, subscription
 
-Commit thay đổi với message rõ ràng, kèm ticket/issue ID nếu có.
+Lưu ý: file này là hợp đồng thiết kế, một số endpoint và model chưa khớp với Prisma schema hiện tại.
 
-Mở Pull Request và chờ review.
+## CI/CD
 
-📧 Liên hệ (Maintainer): phamducquang717@gmail.com
+- `ci.yml`: lint, type-check, test, build và build Docker image (api, web, admin) cho PR và push lên `main`/`develop`.
+- `security.yml`: `npm audit` và CodeQL chạy hằng tuần.
+- Triển khai: Railway (tự động build từ GitHub).
 
----
+## Quy ước phát triển
+
+- Không hardcode API key; dùng biến môi trường.
+- Không commit `.env`, `supabase/.env`, `.aws/credentials`. Nếu lỡ track file nhạy cảm, dùng `git rm --cached <file>`.
+- Bật RLS cho mọi bảng trong schema `public` của Supabase.
+- Ghim phiên bản package và commit lockfile.
+- Trong VS Code, chọn **Use Workspace Version** cho TypeScript (`Ctrl+Shift+P` → *TypeScript: Select Version*).
+
+## Đóng góp
+
+1. Fork repository và tạo nhánh từ `main` (ví dụ `feature/add-auth`).
+2. Commit rõ ràng, kèm issue ID nếu có.
+3. Chạy lint, type-check, build trước khi push.
+4. Mở Pull Request và chờ review.
+
+## Liên hệ
+
+Maintainer: phamducquang717@gmail.com
